@@ -15,6 +15,10 @@ Voici la liste des différents unités que contient la bibliothèque «METEOLIB-
       <td>Cette unité contient les fonctions permettant les conversions de mesures métérologique.</td>
   </tr>
   <tr>
+    <td><b>METEOFNC.PAS</b></td>
+    <td>Cette unité contient des fonctions métérologique.</td>
+  </tr>
+  <tr>
     <td><b>SEASON.PAS</b></td>
     <td>Cette unité contient les fonctions permettant de déterminés les saisons des pays et des capitales.</td>
   </tr>
