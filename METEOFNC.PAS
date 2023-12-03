@@ -27,6 +27,7 @@ Function  GetDryAirEnthalpy(TDryBulb:Real):Real;
 Function  GetHumRatioFromEnthalpyAndTDryBulb(MoistAirEnthalpy,TDryBulb:Real):Real;
 Function  GetHumRatioFromSpecificHum(SpecificHum:Real):Real;
 Function  GetHumRatioFromVapPres(VapPres,Pressure:Real):Real;
+Function  GetMoistAirDensity(TDryBulb,HumRatio,Pressure:Real):Real;
 Function  GetMoistAirEnthalpy(TDryBulb,HumRatio:Real):Real;
 Function  GetMoistAirVolume(TDryBulb,HumRatio,Pressure:Real):Real;
 Function  GetRelHumFromHumRatio(TDryBulb,HumRatio,Pressure:Real):Real;
@@ -34,7 +35,11 @@ Function  GetRelHumFromVapPres(TDryBulb,VapPres:Real):Real;
 Function  GetSatAirEnthalpy(TDryBulb,Pressure:Real):Real;
 Function  GetSatHumRatio(TDryBulb,Pressure:Real):Real;
 Function  GetSatVapPres(TDryBulb:Real):Real;
+Function  GetSeaLevelPressure(StnPressure,Altitude,TDryBulb:Real):Real;
 Function  GetSpecificHumFromHumRatio(HumRatio:Real):Real;
+Function  GetStandardAtmPressure(Altitude:Real):Real;
+Function  GetStandardAtmTemperature(Altitude:Real):Real;
+Function  GetStationPressure(SeaLevelPressure,Altitude,TDryBulb:Real):Real;
 Function  GetTDryBulbFromEnthalpyAndHumRatio(MoistAirEnthalpy,HumRatio:Real):Real;
 Function  GetTDryBulbFromMoistAirVolumeAndHumRatio(MoistAirVolume,HumRatio,Pressure:Real):Real;
 Function  GetVaporPressureDeficit(TDryBulb,HumRatio,Pressure:Real):Real;
@@ -451,6 +456,87 @@ Begin
  End;
 End;
 
+{ @description: Cette fonction permet de retourner la densit‚ de l'air
+                humide en fonction du taux d'humidit‚, de la temp‚rature
+                du bulbe sec et de la pression.
+}
+
+Function GetMoistAirDensity(TDryBulb,HumRatio,Pressure:Real):Real;
+Var
+ BoundedHumRatio:Real;
+Begin
+ BoundedHumRatio:=Max(HumRatio,MIN_HUM_RATIO);
+ GetMoistAirDensity:=(1.0+BoundedHumRatio)/GetMoistAirVolume(TDryBulb,BoundedHumRatio,Pressure);
+End;
+
+{ @description: Cette fonction permet de retourner la pression barom‚trique
+                de l'atmosphŠre standard, compte tenu de l'‚l‚vation (altitude).
+}
+
+Function GetStandardAtmPressure(Altitude:Real):Real;
+Var
+ Pressure:Real;
+Begin
+ If(MeteoUnits=UnitSystemIP)Then Begin
+  Pressure:=14.696*Pow(1.0-6.8754e-06*Altitude,5.2559);
+ End
+  Else
+ Begin
+  Pressure:=101325.0*Pow(1.0-2.25577e-05*Altitude,5.2559);
+ End;
+ GetStandardAtmPressure:=Pressure;
+End;
+
+{ @description: Cette fonction permet de retourner la temp‚rature
+                atmosph‚rique standard, compte tenu de l'‚l‚vation
+                (altitude).
+}
+
+Function GetStandardAtmTemperature(Altitude:Real):Real;
+Var
+ Temperature:Real;
+Begin
+ If(MeteoUnits=UnitSystemIP)Then Begin
+  Temperature:=59.0-0.00356620*Altitude;
+ End
+  Else
+ Begin
+  Temperature:=15.0-0.0065*Altitude;
+ End;
+ GetStandardAtmTemperature:=Temperature;
+End;
+
+{ @description: Cette fonction permet de retourner la pression de
+                retour au niveau de la mer en fonction de la temp‚rature
+                du bulbe sec, de l'altitude au-dessus du niveau de la mer
+                et de la pression.
+}
+
+Function GetSeaLevelPressure(StnPressure,Altitude,TDryBulb:Real):Real;
+Var
+ TColumn,H,SeaLevelPressure:Real;
+Begin
+ If(MeteoUnits=UnitSystemIP)Then Begin
+  TColumn:=TDryBulb+0.0036*Altitude/2.0;
+  H:=53.351*FahrToRankine(TColumn);
+ End
+  Else
+ Begin
+  TColumn:=TDryBulb+0.0065*Altitude/2.0;
+  H:=287.055*CelsiusToKelvin(TColumn)/9.807;
+ End;
+ SeaLevelPressure:=StnPressure*Exp(Altitude/H);
+ GetSeaLevelPressure:=SeaLevelPressure;
+End;
+
+{ @description: Cette fonction permet de retourner la pression de la
+                station de retour … partir de la pression au niveau
+                de la mer.
+}
+
+Function GetStationPressure(SeaLevelPressure,Altitude,TDryBulb:Real):Real;Begin
+ GetStationPressure:=SeaLevelPressure/GetSeaLevelPressure(1.0,Altitude,TDryBulb);
+End;
 
 Function GetCurrUnitSystem:Byte;Begin
  GetCurrUnitSystem:=MeteoUnits;
