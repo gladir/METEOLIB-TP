@@ -20,14 +20,24 @@ Const
 
 Function  dLnPws(TDryBulb:Real):Real;
 Function  GetCurrUnitSystem:Byte;
+Function  GetDegreeOfSaturation(TDryBulb,HumRatio,Pressure:Real):Real;
 Function  GetDryAirDensity(TDryBulb,Pressure:Real):Real;
 Function  GetDryAirVolume(TDryBulb,Pressure:Real):Real;
 Function  GetDryAirEnthalpy(TDryBulb:Real):Real;
 Function  GetHumRatioFromEnthalpyAndTDryBulb(MoistAirEnthalpy,TDryBulb:Real):Real;
 Function  GetHumRatioFromSpecificHum(SpecificHum:Real):Real;
 Function  GetHumRatioFromVapPres(VapPres,Pressure:Real):Real;
+Function  GetMoistAirEnthalpy(TDryBulb,HumRatio:Real):Real;
+Function  GetMoistAirVolume(TDryBulb,HumRatio,Pressure:Real):Real;
+Function  GetRelHumFromHumRatio(TDryBulb,HumRatio,Pressure:Real):Real;
+Function  GetRelHumFromVapPres(TDryBulb,VapPres:Real):Real;
+Function  GetSatAirEnthalpy(TDryBulb,Pressure:Real):Real;
+Function  GetSatHumRatio(TDryBulb,Pressure:Real):Real;
+Function  GetSatVapPres(TDryBulb:Real):Real;
 Function  GetSpecificHumFromHumRatio(HumRatio:Real):Real;
 Function  GetTDryBulbFromEnthalpyAndHumRatio(MoistAirEnthalpy,HumRatio:Real):Real;
+Function  GetTDryBulbFromMoistAirVolumeAndHumRatio(MoistAirVolume,HumRatio,Pressure:Real):Real;
+Function  GetVaporPressureDeficit(TDryBulb,HumRatio,Pressure:Real):Real;
 Function  GetVapPresFromHumRatio(HumRatio,Pressure:Real):Real;
 Procedure SetCurrUnitSystme(X:Byte);
 
@@ -53,6 +63,52 @@ Begin
   p := p * a;
  End;
  Pow:=p;
+End;
+
+Function Log(x:Real):Real;
+Var
+ negatif:Boolean;
+ fois,i:Integer;
+ ajout,savx,xp,quotient,dl:Real;
+Begin
+ negatif := False;
+ fois := 1;
+ ajout := 0;
+ If x <= 0.0 Then Begin
+  Log:=0;
+  Exit;
+ End;
+ If x < 1.0 Then Begin
+  negatif := True;
+  x := 1.0 / x;
+ End;
+ While x >= 10.0 do Begin
+  x := x / 10.0;
+  ajout := ajout + 2.302585092994046;
+ End;
+ While x >= 1.1 do Begin
+  x := Sqrt(x);
+  fois := fois * 2;
+ End;
+ x := x - 1;
+ savx := x;
+ i := 2;
+ xp := x * x;
+ quotient := (xp / i);
+ dl := x - quotient;
+ While 1.0E-15 < quotient do Begin
+  i := i + 1;
+  xp := xp * x;
+  dl := dl + (xp / i);
+  i := i + 1;
+  xp := xp * x;
+  quotient := (xp / i);
+  dl := dl - quotient;
+ End;
+ dl := dl * fois;
+ dl := dl + ajout;
+ If(negatif)Then dl := - dl;
+ Log:=dl;
 End;
 
 { @description: Cette fonction permet de retourner la pression
@@ -222,6 +278,177 @@ Begin
   HumRatio:=(MoistAirEnthalpy/1000.0-1.006*TDryBulb)/(2501.0+1.86*TDryBulb);
  End;
  GetHumRatioFromEnthalpyAndTDryBulb:=Max(HumRatio,MIN_HUM_RATIO);
+End;
+
+{ @description: Cette fonction permet de retrourner la pression de vapeur
+                saturante de retour ‚tant donn‚ la temp‚rature du bulbe sec.
+}
+
+Function GetSatVapPres(TDryBulb:Real):Real;
+Var
+ LnPws,T:Real;
+Begin
+ If(MeteoUnits=UnitSystemIP)Then Begin
+  T:=FahrToRankine(TDryBulb);
+  If(TDryBulb<=TRIPLE_POINT_WATER_IP)Then Begin
+   LnPws:=(-1.0214165E+04/T-4.8932428-5.3765794E-03*T+1.9202377E-07*T*T+
+           3.5575832E-10*Pow(T,3)-9.0344688E-14*Pow(T,4)+4.1635019*Log(T));
+  End
+   Else
+  Begin
+   LnPws:=-1.0440397E+04/T-1.1294650E+01-2.7022355E-02*T+1.2890360E-05*T*T-
+           2.4780681E-09*Pow(T,3)+6.5459673*Log(T);
+  End;
+ End
+  Else
+ Begin
+  T:=CelsiusToKelvin(TDryBulb);
+  If(TDryBulb<=TRIPLE_POINT_WATER_SI)Then Begin
+   LnPws:=-5.6745359E+03/T+6.3925247-9.677843E-03*T+6.2215701E-07*T*T+
+          2.0747825E-09*Pow(T,3)-9.484024E-13*Pow(T,4)+4.1635019*Log(T);
+  End
+   Else
+  Begin
+   LnPws:=-5.8002206E+03/T+1.3914993-4.8640239E-02*T+4.1764768E-05*T*T-
+           1.4452093E-08*Pow(T,3)+6.5459673*Log(T);
+  End;
+ End;
+ GetSatVapPres:=Exp(LnPws);
+End;
+
+{ @description: Cette fonction permet de retourner le taux d'humidit‚
+                de retour de l'air satur‚ en fonction de la temp‚rature
+                et de la pression du bulbe sec.
+}
+
+Function GetSatHumRatio(TDryBulb,Pressure:Real):Real;
+Var
+ SatVaporPres,SatHumRatio:Real;
+Begin
+ SatVaporPres:=GetSatVapPres(TDryBulb);
+ SatHumRatio:=0.621945*SatVaporPres/(Pressure-SatVaporPres);
+ GetSatHumRatio:=Max(SatHumRatio,MIN_HUM_RATIO);
+End;
+
+{ @description: Cette fonction permet de retourner le degr‚ de
+                saturation (c'est-…-dire le rapport humidit‚ du rapport
+                air/humidit‚ de l'air … saturation … la mˆme temp‚rature
+                et pression) en fonction de la temp‚rature du bulbe sec,
+                du taux d'humidit‚ et de la pression atmosph‚rique.
+}
+
+Function GetDegreeOfSaturation(TDryBulb,HumRatio,Pressure:Real):Real;
+Var
+ BoundedHumRatio:Real;
+Begin
+ BoundedHumRatio:=Max(HumRatio,MIN_HUM_RATIO);
+ GetDegreeOfSaturation:=BoundedHumRatio/GetSatHumRatio(TDryBulb,Pressure);
+End;
+
+{ @description: Cette fonction permet de retourner l'enthalpie de l'air
+                humide en fonction de la temp‚rature du bulbe sec et du
+                rapport d'humidit‚.
+}
+
+Function GetMoistAirEnthalpy(TDryBulb,HumRatio:Real):Real;
+Var
+ BoundedHumRatio:Real;
+Begin
+ BoundedHumRatio:=Max(HumRatio,MIN_HUM_RATIO);
+ If(MeteoUnits=UnitSystemIP)Then Begin
+  GetMoistAirEnthalpy:=0.240*TDryBulb+BoundedHumRatio*(1061.0+0.444*TDryBulb);
+ End
+  Else
+ Begin
+  GetMoistAirEnthalpy:=(1.006*TDryBulb+BoundedHumRatio*(2501.0+1.86*TDryBulb))*1000.0;
+ End;
+End;
+
+
+{ @description: Cette fonction permet de retourner l'enthalpie de l'air
+                satur‚ en fonction de la temp‚rature et de la pression
+                du bulbe sec.
+}
+
+Function GetSatAirEnthalpy(TDryBulb,Pressure:Real):Real;Begin
+ GetSatAirEnthalpy:=GetMoistAirEnthalpy(TDryBulb,GetSatHumRatio(TDryBulb,Pressure));
+End;
+
+{ @description: Cette fonction permet de retourner l'humidit‚ relative
+                en fonction de la temp‚rature du bulbe sec et de la
+                pression de vapeur.
+}
+
+Function GetRelHumFromVapPres(TDryBulb,VapPres:Real):Real;Begin
+ GetRelHumFromVapPres:=VapPres/GetSatVapPres(TDryBulb);
+End;
+
+{ @description: Cette fonction permet de retourner l'humidit‚ relative
+                en fonction de la temp‚rature du bulbe sec, du taux
+                d'humidit‚ et de la pression.
+}
+
+Function GetRelHumFromHumRatio(TDryBulb,HumRatio,Pressure:Real):Real;
+Var
+ VapPres:Real;
+Begin
+ VapPres:=GetVapPresFromHumRatio(HumRatio,Pressure);
+ GetRelHumFromHumRatio:=GetRelHumFromVapPres(TDryBulb,VapPres);
+End;
+
+{ @description: Cette fonction permet de retourner le d‚ficit de
+                pression de vapeur en fonction de la temp‚rature du
+                bulbe sec, du taux d'humidit‚ et de la pression.
+}
+
+Function GetVaporPressureDeficit(TDryBulb,HumRatio,Pressure:Real):Real;
+Var
+ RelHum:Real;
+Begin
+ RelHum:=GetRelHumFromHumRatio(TDryBulb,HumRatio,Pressure);
+ GetVaporPressureDeficit:=GetSatVapPres(TDryBulb)*(1.0-RelHum);
+End;
+
+{ @description: Cette fonction permet de retourner le volume sp‚cifique
+                d'air humide en fonction de la temp‚rature du bulbe sec,
+                du taux d'humidit‚ et de la pression.
+}
+
+Function GetMoistAirVolume(TDryBulb,HumRatio,Pressure:Real):Real;
+Var
+ BoundedHumRatio:Real;
+Begin
+ BoundedHumRatio:=Max(HumRatio,MIN_HUM_RATIO);
+ If(MeteoUnits=UnitSystemIP)Then Begin
+  GetMoistAirVolume:=R_DA_IP*FahrToRankine(TDryBulb)*
+                     (1.0+1.607858*BoundedHumRatio)/(144.0*Pressure);
+ End
+  Else
+ Begin
+  GetMoistAirVolume:=R_DA_SI*CelsiusToKelvin(TDryBulb)*
+                     (1.0+1.607858*BoundedHumRatio)/Pressure;
+ End;
+End;
+
+{ @description: Cette fonction permet de retourner la temp‚rature du
+                bulbe sec en fonction du volume sp‚cifique de l'air
+                humide, du taux d'humidit‚ et de la pression.
+}
+
+Function GetTDryBulbFromMoistAirVolumeAndHumRatio(MoistAirVolume,HumRatio,Pressure:Real):Real;
+Var
+ BoundedHumRatio:Real;
+Begin
+ BoundedHumRatio:=Max(HumRatio,MIN_HUM_RATIO);
+ If(MeteoUnits=UnitSystemIP)Then Begin
+  GetTDryBulbFromMoistAirVolumeAndHumRatio:=
+   RankineToFahr(MoistAirVolume*(144*Pressure)/(R_DA_IP*(1+1.607858*BoundedHumRatio)));
+ End
+  Else
+ Begin
+  GetTDryBulbFromMoistAirVolumeAndHumRatio:=
+   KelvinToCelsius(MoistAirVolume*Pressure/(R_DA_SI*(1+1.607858*BoundedHumRatio)));
+ End;
 End;
 
 
