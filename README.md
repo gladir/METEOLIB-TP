@@ -12,11 +12,11 @@ Voici la liste des différents unités que contient la bibliothèque «METEOLIB-
   </tr>
   <tr>
       <td><b>CONVERS.PAS</b></td>
-      <td>Cette unité contient les fonctions permettant les conversions de mesures métérologique.</td>
+      <td>Cette unité contient les fonctions permettant les conversions de mesures météorologique.</td>
   </tr>
   <tr>
     <td><b>METEOFNC.PAS</b></td>
-    <td>Cette unité contient des fonctions métérologique.</td>
+    <td>Cette unité contient des fonctions météorologique.</td>
   </tr>
   <tr>
     <td><b>SEASON.PAS</b></td>
@@ -24,6 +24,6 @@ Voici la liste des différents unités que contient la bibliothèque «METEOLIB-
   </tr>
   <tr>
     <td><b>TEMP.PAS</b></td>
-    <td>Cette unité contient les fontions permettant de connaitre les températures moyennes, minimum et maximum de pays ou de capitale.</td>
+    <td>Cette unité contient les fonctions permettant de connaître les températures moyennes, minimum et maximum de pays ou de capitale.</td>
   </tr>
 </table>
